@@ -930,16 +930,47 @@
       .main-nav a { padding-bottom: 3px; border-bottom: 2px solid transparent; }
       .main-nav a.active { color: var(--ink); border-bottom-color: var(--gold); }
       .mobile-nav a.active, .footer-links a.active { color: var(--gold-ink); }
+      /* ---------- Mobile hamburger menu (button matches the theme toggle) ---------- */
+      .menu-toggle {
+        flex: none; width: 42px; height: 42px; border-radius: 50%;
+        display: none; place-items: center; cursor: pointer;
+        background: var(--surface); color: var(--ink-soft);
+        border: 1px solid var(--line);
+        box-shadow: 0 6px 16px -8px rgba(64, 47, 16, 0.35);
+        transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, color 0.3s ease, background-color 0.45s ease;
+      }
+      .menu-toggle:hover { border-color: var(--ink-soft); color: var(--ink); transform: translateY(-1px); }
+      .menu-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+      .menu-toggle svg { width: 20px; height: 20px; }
+      .menu-toggle .ic-close { display: none; }
+      .menu-toggle[aria-expanded="true"] .ic-open { display: none; }
+      .menu-toggle[aria-expanded="true"] .ic-close { display: block; }
       .mobile-nav { display: none; }
       @media (max-width: 759px) {
+        .menu-toggle { display: grid; width: 38px; height: 38px; }
         .mobile-nav {
-          display: flex; flex-wrap: wrap; gap: 0.35rem 1.15rem;
-          padding-bottom: 0.85rem;
+          display: grid; grid-template-rows: 0fr; visibility: hidden;
+          transition: grid-template-rows 0.38s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.38s;
         }
+        .mobile-nav.open {
+          grid-template-rows: 1fr; visibility: visible;
+          transition: grid-template-rows 0.38s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+        }
+        .mobile-nav-in { overflow: hidden; min-height: 0; padding-bottom: 0.55rem; }
         .mobile-nav a {
-          text-decoration: none; font-size: 0.9rem; font-weight: 700; color: var(--ink-soft);
+          display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+          min-height: 48px; padding: 0.8rem 0.1rem;
+          border-top: 1px solid var(--line);
+          text-decoration: none; font-size: 1rem; font-weight: 700; color: var(--ink-soft);
         }
+        .mobile-nav a:first-child { border-top: 0; }
         .mobile-nav a:hover { color: var(--ink); }
+        .mobile-nav a.active { color: var(--gold-ink); }
+        .mobile-nav a .mn-arr { color: var(--gold-ink); font-weight: 800; transition: transform 0.2s ease; }
+        .mobile-nav a:hover .mn-arr { transform: translateX(3px); }
+      }
+      @media (max-width: 759px) and (prefers-reduced-motion: reduce) {
+        .mobile-nav { transition: none; }
       }
       .back-link {
         display: inline-flex; align-items: center; gap: 0.4rem;
@@ -1470,13 +1501,19 @@
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
           <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         </button>
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
+          <svg class="ic-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          <svg class="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
       </div>
-      <nav class="wrap mobile-nav" aria-label="Mobile">
-        <a href="#/" data-route="home">Home</a>
-        <a href="#/work" data-route="work">Work</a>
-        <a href="#/services" data-route="services">Services</a>
-        <a href="#/pricing" data-route="pricing">Pricing</a>
-        <a href="#/contact" data-route="contact">Contact</a>
+      <nav class="wrap mobile-nav" id="mobileNav" aria-label="Mobile">
+        <div class="mobile-nav-in">
+          <a href="#/" data-route="home">Home <span class="mn-arr" aria-hidden="true">&#8594;</span></a>
+          <a href="#/work" data-route="work">Work <span class="mn-arr" aria-hidden="true">&#8594;</span></a>
+          <a href="#/services" data-route="services">Services <span class="mn-arr" aria-hidden="true">&#8594;</span></a>
+          <a href="#/pricing" data-route="pricing">Pricing <span class="mn-arr" aria-hidden="true">&#8594;</span></a>
+          <a href="#/contact" data-route="contact">Contact <span class="mn-arr" aria-hidden="true">&#8594;</span></a>
+        </div>
       </nav>
     </header>
 
@@ -2542,6 +2579,36 @@
             syncThemeToggle();
           });
           syncThemeToggle();
+        }
+
+        /* ---------- Mobile hamburger menu ---------- */
+        var menuToggle = document.getElementById("menuToggle");
+        var mobileNav = document.getElementById("mobileNav");
+        function setMenu(open) {
+          if (!menuToggle || !mobileNav) return;
+          mobileNav.classList.toggle("open", open);
+          menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+          menuToggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+        }
+        if (menuToggle && mobileNav) {
+          menuToggle.addEventListener("click", function () {
+            setMenu(!mobileNav.classList.contains("open"));
+          });
+          mobileNav.addEventListener("click", function (e) {
+            var link = e.target.closest ? e.target.closest("a") : null;
+            if (link) setMenu(false);
+          });
+          document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && mobileNav.classList.contains("open")) {
+              setMenu(false);
+              menuToggle.focus();
+            }
+          });
+          window.addEventListener("hashchange", function () { setMenu(false); });
+          var deskMq = window.matchMedia("(min-width: 760px)");
+          var onDeskMq = function (ev) { if (ev.matches) setMenu(false); };
+          if (deskMq.addEventListener) deskMq.addEventListener("change", onDeskMq);
+          else if (deskMq.addListener) deskMq.addListener(onDeskMq);
         }
 
         /* ---------- Scroll progress (gold top bar) ---------- */
