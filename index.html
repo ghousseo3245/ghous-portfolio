@@ -20,7 +20,7 @@
     <meta name="twitter:description" content="Premium websites that turn browsers into buyers: ecommerce stores, booking websites and business websites for boutiques &amp; brands." />
     <meta name="twitter:image" content="1d119ccc324b.jpg" />
     <meta name="twitter:image:alt" content="Elegant watches and fine jewelry from the Luxe Boutique collection" />
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="sitemap.xml" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="c0e997ef135b.bin" />
     <title>Ghous.Dev | Web Designer for Boutiques &amp; Brands</title>
     <script>
       /* Theme: light is the default on first load. A saved choice overrides
@@ -2178,20 +2178,19 @@
               <p class="eyebrow">Owner access</p>
               <h2>Site dashboard</h2>
               <div id="adminLoginForm">
-                <p>Enter the email you use for this site and we will send you a secure sign-in link. No password needed.</p>
+                <p>Sign in with your email and password to manage your site content.</p>
                 <p class="admin-error" id="adminLoginError" hidden></p>
                 <form id="adminLoginSubmit" novalidate>
                   <div class="admin-field">
                     <label for="adminEmail">Email address</label>
                     <input id="adminEmail" type="email" name="email" autocomplete="email" placeholder="you@example.com" required />
                   </div>
-                  <button class="btn btn-wa admin-submit" type="submit" id="adminSendBtn">Send login link</button>
+                  <div class="admin-field">
+                    <label for="adminPassword">Password</label>
+                    <input id="adminPassword" type="password" name="password" autocomplete="current-password" placeholder="Your password" required />
+                  </div>
+                  <button class="btn btn-wa admin-submit" type="submit" id="adminSendBtn">Log in</button>
                 </form>
-                <p class="admin-note">The link signs you in and brings you straight back here.</p>
-              </div>
-              <div id="adminLoginSent" hidden>
-                <p><strong style="color: var(--ink);">Check your email.</strong> We sent a sign-in link to <strong style="color: var(--ink);" id="adminSentEmail"></strong>. Open it on this device and you will land right back on the dashboard.</p>
-                <button class="btn btn-outline admin-submit" type="button" id="adminSentBack">Use a different email</button>
               </div>
               <div id="adminUnavailable" hidden>
                 <p>The dashboard could not connect just now. Check your connection and reload this page to try again.</p>
@@ -3333,6 +3332,7 @@
             form.addEventListener("submit", function (e) {
               e.preventDefault();
               var email = $("adminEmail").value.trim();
+              var password = $("adminPassword").value;
               var errEl = $("adminLoginError");
               var btn = $("adminSendBtn");
               if (!email) {
@@ -3340,36 +3340,34 @@
                 errEl.hidden = false;
                 return;
               }
+              if (!password) {
+                errEl.textContent = "Enter your password.";
+                errEl.hidden = false;
+                return;
+              }
               errEl.hidden = true;
               btn.disabled = true;
-              btn.textContent = "Sending...";
-              sb.auth.signInWithOtp({
+              btn.textContent = "Logging in...";
+              sb.auth.signInWithPassword({
                 email: email,
-                options: { emailRedirectTo: "https://ghousdev.vercel.app/#/admin" }
+                password: password
               }).then(function (res) {
                 btn.disabled = false;
-                btn.textContent = "Send login link";
+                btn.textContent = "Log in";
                 if (res && res.error) {
-                  errEl.textContent = res.error.message || "That did not go through. Check the email and try again.";
+                  errEl.textContent = res.error.message || "That email or password is not right. Check both and try again.";
                   errEl.hidden = false;
                   return;
                 }
-                $("adminLoginForm").hidden = true;
-                $("adminSentEmail").textContent = email;
-                $("adminLoginSent").hidden = false;
+                if (res && res.data && res.data.session) setAdminSession(res.data.session);
               }, function () {
                 btn.disabled = false;
-                btn.textContent = "Send login link";
+                btn.textContent = "Log in";
                 errEl.textContent = "That did not go through. Check your connection and try again.";
                 errEl.hidden = false;
               });
             });
           }
-          var back = $("adminSentBack");
-          if (back) back.addEventListener("click", function () {
-            $("adminLoginSent").hidden = true;
-            $("adminLoginForm").hidden = false;
-          });
           var logout = $("adminLogout");
           if (logout) logout.addEventListener("click", function () {
             try { sb.auth.signOut(); } catch (e) { setAdminSession(null); }
