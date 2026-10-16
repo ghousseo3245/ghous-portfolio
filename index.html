@@ -674,6 +674,11 @@
         color: var(--hero-ink); font-size: 0.9rem; line-height: 1.55;
       }
       .form-status a { color: var(--gold-bright); font-weight: 800; }
+      .form-status.error {
+        background: rgba(184, 58, 44, 0.16);
+        border-color: rgba(224, 122, 95, 0.55);
+      }
+      .contact-send[disabled] { opacity: 0.65; cursor: wait; transform: none; }
       .notfound-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.6rem; }
 
       /* ---------- Footer (premium) ---------- */
@@ -1175,6 +1180,34 @@
       }
       .admin-tab:hover { border-color: var(--gold); color: var(--ink); }
       .admin-tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+      .admin-tab .inq-badge {
+        display: inline-grid; place-items: center; vertical-align: 0.1em;
+        min-width: 1.3rem; height: 1.3rem; padding: 0 0.35rem; margin-left: 0.5rem;
+        border-radius: 999px; background: #b83a2c; color: #fff;
+        font-size: 0.72rem; font-weight: 800; line-height: 1;
+      }
+      .inq-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin-bottom: 0.4rem; }
+      .inq-head .adm-section-title { margin: 0; }
+      .inq-head .btn { margin-left: auto; }
+      .inq-card.unread { border-color: rgba(160, 125, 61, 0.65); box-shadow: 0 0 0 1px rgba(160, 125, 61, 0.28); }
+      .inq-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem; margin-bottom: 0.45rem; }
+      .inq-name { font-size: 1rem; }
+      .inq-new {
+        font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        background: #b83a2c; color: #fff; border-radius: 999px; padding: 0.2rem 0.55rem; line-height: 1;
+      }
+      .inq-type {
+        font-size: 0.78rem; font-weight: 700; color: var(--gold-ink);
+        border: 1px solid var(--line); border-radius: 999px; padding: 0.2rem 0.6rem; line-height: 1.2;
+      }
+      .inq-date { margin-left: auto; color: var(--ink-faint); font-size: 0.82rem; font-weight: 600; }
+      .inq-contact { margin: 0 0 0.55rem; font-size: 0.92rem; color: var(--ink-soft); }
+      .inq-contact a { color: var(--gold-ink); font-weight: 700; text-decoration: none; }
+      .inq-contact a:hover { text-decoration: underline; }
+      .inq-msg { margin: 0; color: var(--ink-soft); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .inq-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 1rem; }
+      .inq-actions .btn[disabled] { opacity: 0.6; cursor: wait; }
+      .inq-del:hover, .inq-del.confirming { border-color: rgba(184, 58, 44, 0.65); color: #b83a2c; }
       .admin-panel { display: none; }
       .admin-panel.active { display: block; }
       .adm-grid { display: grid; gap: 1rem; }
@@ -1869,6 +1902,14 @@
                   <input id="cfName" name="name" type="text" autocomplete="name" placeholder="e.g. Ayesha Khan" required />
                 </div>
                 <div class="field">
+                  <label for="cfEmail">Email</label>
+                  <input id="cfEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+                </div>
+                <div class="field">
+                  <label for="cfPhone">Phone</label>
+                  <input id="cfPhone" name="phone" type="tel" autocomplete="tel" placeholder="e.g. 0300 1234567" required />
+                </div>
+                <div class="field">
                   <label for="cfType">Project type</label>
                   <select id="cfType" name="type">
                     <option>Ecommerce Store</option>
@@ -1882,10 +1923,9 @@
                   <textarea id="cfMsg" name="message" rows="4" placeholder="What do you sell, and what should your website do for you?" required></textarea>
                 </div>
                 <button class="btn btn-wa contact-send" type="submit">
-                  <svg class="wa-ic" fill="currentColor" aria-hidden="true"><use href="#ic-wa"></use></svg>
-                  Send via WhatsApp
+                  Send message
                 </button>
-                <p class="form-note">Opens WhatsApp with your message ready to send. You review it there before anything goes out.</p>
+                <p class="form-note">Your message comes straight to me, and I usually reply within a day.</p>
                 <p class="form-status" id="formStatus" role="status" aria-live="polite" hidden></p>
               </form>
             </div>
@@ -2407,36 +2447,47 @@
           });
         });
 
-        /* ---------- Contact form → prefilled WhatsApp chat (no backend) ---------- */
+        /* ---------- Contact form → saved to the dashboard (Supabase contact_submissions) ---------- */
         var form = document.getElementById("contactForm");
         if (form) {
           form.addEventListener("submit", function (e) {
             e.preventDefault();
-            var name = document.getElementById("cfName").value.trim();
-            var type = document.getElementById("cfType").value;
-            var msg = document.getElementById("cfMsg").value.trim();
-            var lines = [];
-            lines.push(name ? "Hi Ghous, I'm " + name + "." : "Hi Ghous.");
-            lines.push("Project type: " + type);
-            if (msg) { lines.push(""); lines.push(msg); }
-            var url = "https://wa.me/" + (window.__cmsWaDigits || "923186603971") + "?text=" + encodeURIComponent(lines.join("\n"));
             var status = document.getElementById("formStatus");
-            var win = null;
-            try { win = window.open(url, "_blank", "noopener"); } catch (err) { win = null; }
-            if (status) {
+            var btn = form.querySelector(".contact-send");
+            var btnLabel = btn ? btn.textContent : "";
+            function showStatus(text, isError) {
+              if (!status) return;
               status.hidden = false;
-              status.textContent = "";
-              if (win) {
-                status.textContent = "WhatsApp opened in a new tab with your message ready. Review it there and press send.";
-              } else {
-                status.appendChild(document.createTextNode("WhatsApp didn't open automatically (a popup blocker may have stopped it). "));
-                var link = document.createElement("a");
-                link.href = url; link.target = "_blank"; link.rel = "noopener";
-                link.textContent = "Tap here to open WhatsApp with your message ready";
-                status.appendChild(link);
-                status.appendChild(document.createTextNode(". Nothing has been sent yet."));
-              }
+              status.classList.toggle("error", !!isError);
+              status.textContent = text;
             }
+            function restoreBtn() {
+              if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
+            }
+            var client = window.__sbClient || null;
+            if (!client) {
+              showStatus("Sorry, your message could not be sent just now. Please try again in a moment.", true);
+              return;
+            }
+            if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+            client.from("contact_submissions").insert([{
+              name: document.getElementById("cfName").value.trim(),
+              email: document.getElementById("cfEmail").value.trim(),
+              phone: document.getElementById("cfPhone").value.trim(),
+              project_type: document.getElementById("cfType").value,
+              message: document.getElementById("cfMsg").value.trim()
+            }]).then(function (res) {
+              restoreBtn();
+              if (res && res.error) {
+                showStatus("Sorry, something went wrong sending your message. Please try again in a moment.", true);
+                return;
+              }
+              form.reset();
+              showStatus("Thanks — I'll get back to you soon.", false);
+            }, function () {
+              restoreBtn();
+              showStatus("Sorry, something went wrong sending your message. Please try again in a moment.", true);
+            });
           });
         }
       })();
@@ -2587,6 +2638,9 @@
             });
           }
         } catch (e) { sb = null; }
+        /* Shared with the page script above: the contact form saves
+           inquiries through this same public client. */
+        if (sb) window.__sbClient = sb;
 
         /* ---------------- helpers ---------------- */
         function norm(s) { return String(s == null ? "" : s).replace(/\s+/g, " ").trim(); }
@@ -2876,6 +2930,7 @@
 
         /* ---------------- admin ---------------- */
         var adminState = { session: null, site: null, built: false, loading: false };
+        var inqState = { rows: [], readCol: null, listEl: null, statusEl: null, badgeEl: null };
         var fieldSeq = 0;
 
         function $(id) { return document.getElementById(id); }
@@ -3255,7 +3310,8 @@
               p.appendChild(makeField("Text", c, "body", { long: true }));
               p.appendChild(makeField("Button text", c, "button"));
               p.appendChild(hint("This closing section appears at the bottom of the home page and on the contact page."));
-            } }
+            } },
+            { id: "inquiries", label: "Inquiries", build: function (p) { buildInquiriesPanel(p); } }
           ];
 
           tabs.forEach(function (tab, i) {
@@ -3263,6 +3319,14 @@
             b.type = "button";
             b.className = "admin-tab" + (i === 0 ? " active" : "");
             b.textContent = tab.label;
+            if (tab.id === "inquiries") {
+              var inqBadge = document.createElement("span");
+              inqBadge.className = "inq-badge";
+              inqBadge.hidden = true;
+              inqBadge.textContent = "0";
+              b.appendChild(inqBadge);
+              inqState.badgeEl = inqBadge;
+            }
             var panel = document.createElement("div");
             panel.className = "admin-panel" + (i === 0 ? " active" : "");
             panel.id = "admin_panel_" + tab.id;
@@ -3272,6 +3336,7 @@
               Array.prototype.forEach.call(panelsEl.querySelectorAll(".admin-panel"), function (x) { x.classList.remove("active"); });
               b.classList.add("active");
               panel.classList.add("active");
+              if (tab.id === "inquiries") loadInquiries();
             });
             tabsEl.appendChild(b);
             panelsEl.appendChild(panel);
@@ -3279,6 +3344,220 @@
 
           $("adminBody").hidden = false;
           adminState.built = true;
+          loadInquiries();
+        }
+
+        /* ---------------- inquiries (contact_submissions) ----------------
+           Lives outside the CMS content row: each inquiry is its own row,
+           saved the moment it is read, unread or deleted — no Publish. */
+        function fmtInqDate(v) {
+          if (!v) return "";
+          var d = new Date(v);
+          if (isNaN(d.getTime())) return "";
+          try {
+            return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
+              " · " + d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" });
+          } catch (e) { return ""; }
+        }
+        function inqIsRead(row) {
+          if (!row) return false;
+          if (inqState.readCol === "read_at") return !!row.read_at;
+          if (inqState.readCol === "read") return row.read === true;
+          return row.is_read === true;
+        }
+        function updateInqBadge() {
+          var badge = inqState.badgeEl;
+          if (!badge) return;
+          var n = 0;
+          inqState.rows.forEach(function (r) { if (!inqIsRead(r)) n++; });
+          badge.textContent = String(n);
+          badge.hidden = n === 0;
+        }
+        function buildInquiriesPanel(p) {
+          var head = document.createElement("div");
+          head.className = "inq-head";
+          var title = document.createElement("h3");
+          title.className = "adm-section-title";
+          title.textContent = "Inquiries";
+          head.appendChild(title);
+          var refresh = document.createElement("button");
+          refresh.type = "button";
+          refresh.className = "btn btn-outline btn-sm";
+          refresh.textContent = "Refresh";
+          refresh.addEventListener("click", function () { loadInquiries(); });
+          head.appendChild(refresh);
+          p.appendChild(head);
+          var st = document.createElement("p");
+          st.className = "adm-hint";
+          st.textContent = "Loading inquiries…";
+          p.appendChild(st);
+          inqState.statusEl = st;
+          var list = document.createElement("div");
+          inqState.listEl = list;
+          p.appendChild(list);
+        }
+        function inqLoadFailed() {
+          if (inqState.statusEl) inqState.statusEl.textContent = "Inquiries could not be loaded. Check your connection, then press Refresh.";
+        }
+        function inqGot(rows) {
+          inqState.rows = rows || [];
+          inqState.readCol = null;
+          for (var i = 0; i < inqState.rows.length; i++) {
+            var r = inqState.rows[i];
+            if ("is_read" in r) { inqState.readCol = "is_read"; break; }
+            if ("read" in r) { inqState.readCol = "read"; break; }
+            if ("read_at" in r) { inqState.readCol = "read_at"; break; }
+          }
+          renderInquiries();
+          updateInqBadge();
+        }
+        function loadInquiries() {
+          if (!sb || !inqState.listEl) return;
+          if (inqState.statusEl) inqState.statusEl.textContent = "Loading inquiries…";
+          sb.from("contact_submissions").select("*").order("created_at", { ascending: false }).then(function (res) {
+            if (res && res.error) {
+              /* The ordering column may not exist; fall back to a plain fetch. */
+              sb.from("contact_submissions").select("*").then(function (res2) {
+                if (res2 && res2.error) { inqLoadFailed(); return; }
+                inqGot(res2 && res2.data ? res2.data : []);
+              }, inqLoadFailed);
+              return;
+            }
+            inqGot(res && res.data ? res.data : []);
+          }, inqLoadFailed);
+        }
+        function renderInquiries() {
+          var list = inqState.listEl;
+          if (!list) return;
+          list.innerHTML = "";
+          var rows = inqState.rows;
+          if (inqState.statusEl) {
+            inqState.statusEl.textContent = rows.length
+              ? rows.length + (rows.length === 1 ? " inquiry" : " inquiries") + " · newest first"
+              : "No inquiries yet. When someone sends the contact form, it appears here.";
+          }
+          rows.forEach(function (row) {
+            var unread = !inqIsRead(row);
+            var card = document.createElement("article");
+            card.className = "adm-item inq-card" + (unread ? " unread" : "");
+            var top = document.createElement("div");
+            top.className = "inq-top";
+            var name = document.createElement("strong");
+            name.className = "inq-name";
+            name.textContent = row.name || "No name";
+            top.appendChild(name);
+            if (unread) {
+              var tag = document.createElement("span");
+              tag.className = "inq-new";
+              tag.textContent = "New";
+              top.appendChild(tag);
+            }
+            if (row.project_type) {
+              var type = document.createElement("span");
+              type.className = "inq-type";
+              type.textContent = row.project_type;
+              top.appendChild(type);
+            }
+            var date = document.createElement("span");
+            date.className = "inq-date";
+            date.textContent = fmtInqDate(row.created_at);
+            top.appendChild(date);
+            card.appendChild(top);
+            var contact = document.createElement("p");
+            contact.className = "inq-contact";
+            if (row.email) {
+              var mail = document.createElement("a");
+              mail.href = "mailto:" + row.email;
+              mail.textContent = row.email;
+              contact.appendChild(mail);
+            }
+            if (row.email && row.phone) contact.appendChild(document.createTextNode("  ·  "));
+            if (row.phone) {
+              var tel = document.createElement("a");
+              tel.href = "tel:" + String(row.phone).replace(/\s+/g, "");
+              tel.textContent = row.phone;
+              contact.appendChild(tel);
+            }
+            if (!row.email && !row.phone) contact.textContent = "No email or phone left with this inquiry.";
+            card.appendChild(contact);
+            var msg = document.createElement("p");
+            msg.className = "inq-msg";
+            msg.textContent = row.message || "";
+            card.appendChild(msg);
+            var actions = document.createElement("div");
+            actions.className = "inq-actions";
+            var toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "btn btn-outline btn-sm";
+            toggle.textContent = unread ? "Mark as read" : "Mark as unread";
+            toggle.addEventListener("click", function () { toggleInqRead(row, toggle); });
+            actions.appendChild(toggle);
+            var del = document.createElement("button");
+            del.type = "button";
+            del.className = "btn btn-outline btn-sm inq-del";
+            del.textContent = "Delete";
+            del.addEventListener("click", function () { deleteInquiry(row, del); });
+            actions.appendChild(del);
+            card.appendChild(actions);
+            list.appendChild(card);
+          });
+        }
+        function toggleInqRead(row, btn) {
+          if (!sb) return;
+          var col = inqState.readCol || "is_read";
+          var nowRead = !inqIsRead(row);
+          var patch = {};
+          patch[col] = col === "read_at" ? (nowRead ? new Date().toISOString() : null) : nowRead;
+          btn.disabled = true;
+          sb.from("contact_submissions").update(patch).eq("id", row.id).then(function (res) {
+            btn.disabled = false;
+            if (res && res.error) { toast("That inquiry could not be updated. Try again.", true); return; }
+            row[col] = patch[col];
+            if (!inqState.readCol) inqState.readCol = col;
+            renderInquiries();
+            updateInqBadge();
+          }, function () {
+            btn.disabled = false;
+            toast("That inquiry could not be updated. Try again.", true);
+          });
+        }
+        function deleteInquiry(row, btn) {
+          if (!sb) return;
+          if (btn.getAttribute("data-confirming") !== "1") {
+            btn.setAttribute("data-confirming", "1");
+            btn.textContent = "Tap again to delete";
+            btn.classList.add("confirming");
+            setTimeout(function () {
+              if (btn.isConnected) {
+                btn.removeAttribute("data-confirming");
+                btn.classList.remove("confirming");
+                btn.textContent = "Delete";
+              }
+            }, 3500);
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = "Deleting…";
+          sb.from("contact_submissions").delete().eq("id", row.id).then(function (res) {
+            if (res && res.error) {
+              btn.disabled = false;
+              btn.removeAttribute("data-confirming");
+              btn.classList.remove("confirming");
+              btn.textContent = "Delete";
+              toast("That inquiry could not be deleted. Try again.", true);
+              return;
+            }
+            inqState.rows = inqState.rows.filter(function (r) { return r !== row; });
+            renderInquiries();
+            updateInqBadge();
+            toast("Inquiry deleted");
+          }, function () {
+            btn.disabled = false;
+            btn.removeAttribute("data-confirming");
+            btn.classList.remove("confirming");
+            btn.textContent = "Delete";
+            toast("That inquiry could not be deleted. Try again.", true);
+          });
         }
 
         function loadAdminData() {
