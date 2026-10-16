@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ghousdev.vercel.app/sitemap.xml
